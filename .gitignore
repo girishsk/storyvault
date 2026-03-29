@@ -33,6 +33,14 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# secrets & credentials
+*.json.key
+google-credentials*.json
+service-account*.json
+
+# local data (contains API keys stored via Settings)
+/data/
+
 # vercel
 .vercel
 

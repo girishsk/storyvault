@@ -1,26 +1,110 @@
 @import "tailwindcss";
 
+/* ── Antiquarian palette ────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Core */
+  --ink:        #1a1208;
+  --paper:      #f5f0e8;
+  --gold:       #c9940a;
+  --rust:       #8b2c0a;
+
+  /* Supporting */
+  --navy:       #1a3a5c;
+  --forest:     #1a4a2a;
+  --tan:        #9a8f7a;
+
+  /* Structural */
+  --rule:       #c4b89a;
+  --card:       #ffffff;
+
+  /* Semantic aliases — light mode */
+  --bg:         var(--paper);
+  --surface:    var(--card);
+  --surface-2:  #ede8de;
+  --text:       var(--ink);
+  --text-2:     #5a4e3a;
+  --text-3:     var(--tan);
+  --accent:     var(--gold);
+  --accent-2:   var(--rust);
+  --border:     var(--rule);
+  --border-2:   #d6cbb5;
+  --focus:      var(--gold);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
+/* ── Dark mode ──────────────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --bg:        #120e07;
+    --surface:   #1e1710;
+    --surface-2: #26200f;
+    --text:      #f0e8d5;
+    --text-2:    #c0b090;
+    --text-3:    #8a7a60;
+    --accent:    #e0aa20;
+    --accent-2:  #c05020;
+    --border:    #3a3020;
+    --border-2:  #2e2618;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+[data-theme="dark"] {
+  --bg:        #120e07;
+  --surface:   #1e1710;
+  --surface-2: #26200f;
+  --text:      #f0e8d5;
+  --text-2:    #c0b090;
+  --text-3:    #8a7a60;
+  --accent:    #e0aa20;
+  --accent-2:  #c05020;
+  --border:    #3a3020;
+  --border-2:  #2e2618;
 }
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* Expose palette to Tailwind utilities */
+  --color-ink:     #1a1208;
+  --color-paper:   #f5f0e8;
+  --color-gold:    #c9940a;
+  --color-rust:    #8b2c0a;
+  --color-tan:     #9a8f7a;
+  --color-rule:    #c4b89a;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-geist-sans, Arial, sans-serif);
+  transition: background 0.2s, color 0.2s;
+}
+
+/* ── Prose overrides for react-markdown ────────────────────────── */
+.story-prose p        { color: var(--text); line-height: 1.75; margin-bottom: 0.9em; }
+.story-prose h1,
+.story-prose h2,
+.story-prose h3       { color: var(--text); font-weight: 700; margin-bottom: 0.4em; }
+.story-prose strong   { color: var(--text); }
+.story-prose em       { color: var(--text-2); }
+.story-prose blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--surface-2);
+  padding: 0.5rem 1rem;
+  margin: 1rem 0;
+  border-radius: 0 8px 8px 0;
+  color: var(--text-2);
+}
+.story-prose code {
+  background: var(--surface-2);
+  color: var(--accent-2);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  font-size: 0.875em;
+}
+.story-prose ul, .story-prose ol { color: var(--text); padding-left: 1.4em; }
+.story-prose li { margin-bottom: 0.25em; }
+.story-prose a { color: var(--accent); text-decoration: underline; }
+.story-prose hr { border-color: var(--border); }

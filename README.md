@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StoryVault
 
-## Getting Started
+A personal web app for capturing, visualizing, and connecting stories and passages from books. Add a story by typing it in, or photograph a page and let Claude extract the text. Each story gets AI-generated diagrams, topic tags, and automatic links to related stories in your library.
 
-First, run the development server:
+## Features
+
+- **Add stories** — paste text manually or scan a book page with your camera/clipboard (Ctrl+V)
+- **AI diagrams** — Claude picks the most fitting Mermaid diagram types (mindmap, flowchart, timeline, etc.) for each story and generates them automatically
+- **Fullscreen diagram viewer** — pan, zoom (scroll or pinch), and drag; best-fit on open
+- **Topic connections** — click any topic tag to see every other story that shares it
+- **Related stories** — a "Related" tab shows stories linked by shared topics with similarity scoring
+- **Story graph** — interactive network view of the whole library, nodes connected by shared topics
+- **Inline editing** — update a story's book title and author directly from the viewer
+- **Google Sheets sync** — bidirectional sync so your library lives in a spreadsheet too
+- **Settings UI** — configure your Anthropic API key, Spreadsheet ID, and Google credentials from within the app (no restart needed)
+- **Dark mode** — toggle between a warm antiquarian light palette and a matching dark palette; preference is saved
+
+## Prerequisites
+
+- Node.js 18+
+- An [Anthropic API key](https://console.anthropic.com/)
+- (Optional) A Google Cloud service account with Sheets API access for sync
+
+## Quick start
 
 ```bash
+cd web
+npm install
+cp .env.local.example .env.local   # then add your ANTHROPIC_API_KEY
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create a `.env.local` file in `web/`:
 
-## Learn More
+```env
+# Required
+ANTHROPIC_API_KEY=sk-ant-...
 
-To learn more about Next.js, take a look at the following resources:
+# Optional — Google Sheets sync
+SPREADSHEET_ID=1ABC...xyz
+GOOGLE_CREDENTIALS_JSON={"type":"service_account",...}
+# or point to a file:
+GOOGLE_CREDENTIALS_PATH=/path/to/service-account.json
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+All of these can also be set at runtime through the **Settings** gear in the top-right corner. Values entered there are stored in the local SQLite database and take effect immediately, without a server restart. Environment variables always take precedence over database-stored values.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Google Sheets setup
 
-## Deploy on Vercel
+1. Create a Google Cloud project and enable the **Sheets API**.
+2. Create a **service account**, download the JSON key.
+3. Share your target spreadsheet with the service account's email address (Editor role).
+4. Paste the JSON content into Settings → Google Credentials, or set `GOOGLE_CREDENTIALS_JSON` in `.env.local`.
+5. Enter your spreadsheet ID (the long string in the URL) in Settings → Spreadsheet ID.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Sync is bidirectional: new local stories are pushed to Sheets, and rows added directly to Sheets are pulled back into the local database.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Data storage
+
+All data is stored in `web/data/stories.db` (SQLite). The `data/` directory is gitignored. No data leaves your machine except:
+
+- Story content sent to the Anthropic API for diagram generation, topic extraction, and image scanning
+- Stories pushed to your own Google Sheet when you trigger a sync
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server with Turbopack |
+| `npm run build` | Production build |
+| `npm run start` | Start production server |
+| `npm run lint` | Run ESLint |
+
+## Architecture
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for a full breakdown of the directory structure, database schema, API routes, Claude integration, theming system, and diagram viewer implementation.
