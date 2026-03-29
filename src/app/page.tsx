@@ -59,7 +59,7 @@ export default function Home() {
     try {
       const res = await fetch('/api/stories');
       const data = await res.json();
-      setStories(data);
+      setStories(Array.isArray(data) ? data : []);
     } finally {
       setLoading(false);
     }
