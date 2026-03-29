@@ -2,7 +2,9 @@ import { neon } from '@neondatabase/serverless';
 import { Story, StoryLink } from '@/types/story';
 
 function getDb() {
-  return neon(process.env.POSTGRES_URL!);
+  const url = process.env.POSTGRES_URL || process.env.storyvault_POSTGRES_URL;
+  if (!url) throw new Error('No Postgres URL configured (POSTGRES_URL or storyvault_POSTGRES_URL)');
+  return neon(url);
 }
 
 let _schemaReady = false;
