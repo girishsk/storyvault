@@ -67,6 +67,25 @@ export default function Home() {
 
   useEffect(() => { loadStories(); }, [loadStories]);
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!selected || showAdd || showSettings) return;
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const q = search.toLowerCase();
+      const visible = stories.filter(s => {
+        const matchSearch = !q || s.title.toLowerCase().includes(q) || s.content.toLowerCase().includes(q) || s.bookTitle.toLowerCase().includes(q) || s.topics.some(t => t.toLowerCase().includes(q));
+        const matchTopic = !topicFilter || s.topics.some(t => t.toLowerCase() === topicFilter.toLowerCase());
+        return matchSearch && matchTopic;
+      });
+      const idx = visible.findIndex(s => s.id === selected.id);
+      if (idx === -1) return;
+      const next = e.key === 'ArrowLeft' ? visible[idx - 1] : visible[idx + 1];
+      if (next) setSelected(next);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selected, stories, search, topicFilter, showAdd, showSettings]);
+
   async function getRandomStory() {
     const res = await fetch('/api/stories/random');
     if (res.ok) {
