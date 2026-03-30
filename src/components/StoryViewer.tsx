@@ -49,6 +49,7 @@ export default function StoryViewer({ story, onClose, onDeleted, onStorySelect, 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showImageViewer, setShowImageViewer] = useState(false);
+  const [imgHovered, setImgHovered] = useState(false);
 
   useEffect(() => {
     setCurrentStory(story);
@@ -429,36 +430,69 @@ export default function StoryViewer({ story, onClose, onDeleted, onStorySelect, 
       <div style={{ padding: '24px' }}>
         {tab === 'story' && (
           <div>
-            {imageUrl(currentStory.sourceImagePath) && (
-              <div
-                style={{ position: 'relative', marginBottom: 20, cursor: 'pointer' }}
-                onClick={() => setShowImageViewer(true)}
-              >
-                <img
-                  src={imageUrl(currentStory.sourceImagePath)!}
-                  alt="Source"
+            {imageUrl(currentStory.sourceImagePath) && (() => {
+              const rot = currentStory.sourceImageRotation ?? 0;
+              const transposed = rot === 90 || rot === 270;
+              // Visual height to show in the thumbnail for rotated images
+              const ROTATED_THUMB_H = 200;
+              return (
+                <div
+                  onClick={() => setShowImageViewer(true)}
+                  onMouseEnter={() => setImgHovered(true)}
+                  onMouseLeave={() => setImgHovered(false)}
                   style={{
-                    width: '100%', maxHeight: 280, objectFit: 'cover',
-                    borderRadius: 12, border: '1px solid var(--border)',
-                    display: 'block',
-                    transform: `rotate(${currentStory.sourceImageRotation ?? 0}deg)`,
-                    transition: 'transform 0.3s ease',
+                    position: 'relative',
+                    width: '100%',
+                    overflow: 'hidden',
+                    borderRadius: 12,
+                    border: '1px solid var(--border)',
+                    marginBottom: 20,
+                    cursor: 'pointer',
+                    background: 'var(--surface-2)',
+                    // For transposed: fixed height container so the rotated image fills width
+                    // For normal: auto height up to 280px
+                    ...(transposed ? { height: ROTATED_THUMB_H } : { maxHeight: 280 }),
                   }}
-                />
-                <div style={{
-                  position: 'absolute', inset: 0, borderRadius: 12,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'rgba(0,0,0,0)', transition: 'background 0.2s',
-                }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(0,0,0,0.25)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(0,0,0,0)'; }}
                 >
-                  <Expand size={28} style={{ color: '#fff', opacity: 0, transition: 'opacity 0.2s' }}
-                    onMouseEnter={e => { (e.currentTarget as SVGElement).style.opacity = '1'; }}
+                  <img
+                    src={imageUrl(currentStory.sourceImagePath)!}
+                    alt="Source"
+                    style={transposed ? {
+                      // CSS width/height are SWAPPED for 90°/270° so that after rotation:
+                      //   visual width  = CSS height = '100%' = container width ✓
+                      //   visual height = CSS width  = ROTATED_THUMB_H px           ✓
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      width: ROTATED_THUMB_H,
+                      height: '100%',
+                      objectFit: 'cover',
+                      transform: `translate(-50%, -50%) rotate(${rot}deg)`,
+                    } : {
+                      display: 'block',
+                      width: '100%',
+                      maxHeight: 280,
+                      objectFit: 'cover',
+                    }}
                   />
+                  {/* Hover overlay */}
+                  <div style={{
+                    position: 'absolute', inset: 0, borderRadius: 12,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: imgHovered ? 'rgba(0,0,0,0.28)' : 'rgba(0,0,0,0)',
+                    transition: 'background 0.2s',
+                    pointerEvents: 'none',
+                  }}>
+                    <Expand size={28} style={{
+                      color: '#fff',
+                      opacity: imgHovered ? 1 : 0,
+                      transition: 'opacity 0.2s',
+                      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))',
+                    }} />
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
             <div className="story-prose">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {currentStory.content}
