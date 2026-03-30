@@ -70,7 +70,7 @@ function rowToStory(row: any): Story {
     mermaidCode: row.mermaid_code,
     diagramImagePath: row.diagram_image_path ?? null,
     sourceImagePath: row.source_image_path ?? null,
-    sourceImageRotation: (row.source_image_rotation as number) ?? 0,
+    sourceImageRotation: parseInt(String(row.source_image_rotation ?? 0), 10),
     relatedStoryIds: JSON.parse(row.related_story_ids),
     createdAt: row.created_at,
     updatedAt: row.updated_at,

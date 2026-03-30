@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Story } from '@/types/story';
 import MermaidDiagram from './MermaidDiagram';
 import DiagramViewer from './DiagramViewer';
@@ -50,6 +50,17 @@ export default function StoryViewer({ story, onClose, onDeleted, onStorySelect, 
   const [deleting, setDeleting] = useState(false);
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [imgHovered, setImgHovered] = useState(false);
+  const thumbContainerRef = useRef<HTMLDivElement>(null);
+  const [thumbW, setThumbW] = useState(0);
+
+  useEffect(() => {
+    const el = thumbContainerRef.current;
+    if (!el) return;
+    setThumbW(el.clientWidth);
+    const ro = new ResizeObserver(([e]) => setThumbW(e.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [currentStory.sourceImagePath]);
 
   useEffect(() => {
     setCurrentStory(story);
@@ -431,12 +442,14 @@ export default function StoryViewer({ story, onClose, onDeleted, onStorySelect, 
         {tab === 'story' && (
           <div>
             {imageUrl(currentStory.sourceImagePath) && (() => {
-              const rot = currentStory.sourceImageRotation ?? 0;
+              // Parse as number — Neon may return rotation as a string
+              const rot = parseInt(String(currentStory.sourceImageRotation ?? 0), 10);
               const transposed = rot === 90 || rot === 270;
-              // Visual height to show in the thumbnail for rotated images
-              const ROTATED_THUMB_H = 200;
+              // Visual height for the thumbnail when rotated (width becomes the visual width after rotation)
+              const THUMB_VIS_H = 200;
               return (
                 <div
+                  ref={thumbContainerRef}
                   onClick={() => setShowImageViewer(true)}
                   onMouseEnter={() => setImgHovered(true)}
                   onMouseLeave={() => setImgHovered(false)}
@@ -449,23 +462,22 @@ export default function StoryViewer({ story, onClose, onDeleted, onStorySelect, 
                     marginBottom: 20,
                     cursor: 'pointer',
                     background: 'var(--surface-2)',
-                    // For transposed: fixed height container so the rotated image fills width
-                    // For normal: auto height up to 280px
-                    ...(transposed ? { height: ROTATED_THUMB_H } : { maxHeight: 280 }),
+                    ...(transposed ? { height: THUMB_VIS_H } : { maxHeight: 280 }),
                   }}
                 >
                   <img
                     src={imageUrl(currentStory.sourceImagePath)!}
                     alt="Source"
                     style={transposed ? {
-                      // CSS width/height are SWAPPED for 90°/270° so that after rotation:
-                      //   visual width  = CSS height = '100%' = container width ✓
-                      //   visual height = CSS width  = ROTATED_THUMB_H px           ✓
+                      // For 90°/270°: CSS dimensions are swapped so after rotation:
+                      //   visual width  = CSS height = thumbW (= container width) ✓
+                      //   visual height = CSS width  = THUMB_VIS_H               ✓
+                      // Centering via absolute + translate so image fills the container exactly.
                       position: 'absolute',
                       top: '50%',
                       left: '50%',
-                      width: ROTATED_THUMB_H,
-                      height: '100%',
+                      width: THUMB_VIS_H,
+                      height: thumbW || '100%',
                       objectFit: 'cover',
                       transform: `translate(-50%, -50%) rotate(${rot}deg)`,
                     } : {
