@@ -92,19 +92,23 @@ export default function DiagramViewer({ code, label, type, onClose }: Props) {
         const svgEl = svgWrapRef.current.querySelector('svg');
         if (!svgEl) return;
 
-        // Remove any fixed size attrs so we can measure natural size
-        svgEl.removeAttribute('width');
-        svgEl.removeAttribute('height');
-        svgEl.style.display = 'block';
-
-        // Measure natural SVG size via viewBox
+        // Read viewBox for natural dimensions
         const vb = svgEl.getAttribute('viewBox');
-        let svgW = svgEl.getBoundingClientRect().width || 800;
-        let svgH = svgEl.getBoundingClientRect().height || 600;
+        let svgW = 800;
+        let svgH = 600;
         if (vb) {
           const parts = vb.split(/[\s,]+/).map(Number);
-          if (parts.length === 4) { svgW = parts[2]; svgH = parts[3]; }
+          if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+            svgW = parts[2];
+            svgH = parts[3];
+          }
         }
+
+        // Set explicit dimensions so SVG renders at natural size —
+        // the CSS transform then scales it to fit the canvas.
+        svgEl.setAttribute('width', `${svgW}`);
+        svgEl.setAttribute('height', `${svgH}`);
+        svgEl.style.display = 'block';
 
         // Canvas available area (minus toolbar + hint = ~80px)
         const canvasW = canvasRef.current.clientWidth - 64;
@@ -130,12 +134,8 @@ export default function DiagramViewer({ code, label, type, onClose }: Props) {
   function fitToScreen() {
     if (!svgWrapRef.current || !canvasRef.current) return;
     const svgEl = svgWrapRef.current.querySelector('svg');
-    const vb = svgEl?.getAttribute('viewBox');
-    let svgW = 800, svgH = 600;
-    if (vb) {
-      const p = vb.split(/[\s,]+/).map(Number);
-      if (p.length === 4) { svgW = p[2]; svgH = p[3]; }
-    }
+    let svgW = parseFloat(svgEl?.getAttribute('width') || '800') || 800;
+    let svgH = parseFloat(svgEl?.getAttribute('height') || '600') || 600;
     const canvasW = canvasRef.current.clientWidth - 64;
     const canvasH = canvasRef.current.clientHeight - 64;
     setScale(Math.min(canvasW / svgW, canvasH / svgH, 1));
