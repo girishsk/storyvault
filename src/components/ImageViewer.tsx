@@ -12,7 +12,7 @@ interface Props {
 
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 8;
-const PINCH_DAMPING = 0.6;
+const PINCH_DAMPING = 0.25;
 
 function clamp(v: number, min: number, max: number) {
   return Math.min(Math.max(v, min), max);
