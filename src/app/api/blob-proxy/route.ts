@@ -1,0 +1,24 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+// Proxies private Vercel Blob images through the server so the browser
+// doesn't need direct blob credentials.
+export async function GET(req: NextRequest) {
+  const url = req.nextUrl.searchParams.get('url');
+  if (!url) return NextResponse.json({ error: 'Missing url' }, { status: 400 });
+
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) return NextResponse.json({ error: 'Blob not configured' }, { status: 503 });
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) return NextResponse.json({ error: 'Blob not found' }, { status: 404 });
+
+  return new NextResponse(res.body, {
+    headers: {
+      'Content-Type': res.headers.get('Content-Type') || 'image/jpeg',
+      'Cache-Control': 'private, max-age=3600',
+    },
+  });
+}

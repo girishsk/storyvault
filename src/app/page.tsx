@@ -239,6 +239,7 @@ export default function Home() {
               <StoryViewer
                 story={selected}
                 onClose={() => setSelected(null)}
+                onDeleted={() => { setSelected(null); loadStories(); }}
                 onStorySelect={s => setSelected(s)}
                 onTopicClick={t => setTopicFilter(prev => prev === t ? '' : t)}
               />

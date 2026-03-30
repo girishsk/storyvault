@@ -7,7 +7,7 @@ import DiagramViewer from './DiagramViewer';
 import StoryCard from './StoryCard';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { RefreshCw, X, Loader2, BookOpen, FileText, GitBranch, Link2, Sparkles, Maximize2, Pencil, Check } from 'lucide-react';
+import { RefreshCw, X, Loader2, BookOpen, FileText, GitBranch, Link2, Sparkles, Maximize2, Pencil, Check, Trash2 } from 'lucide-react';
 
 interface RelatedEntry {
   story: Story;
@@ -26,11 +26,12 @@ type Tab = 'story' | 'mindmap' | 'related';
 interface Props {
   story: Story;
   onClose?: () => void;
+  onDeleted?: () => void;
   onStorySelect?: (story: Story) => void;
   onTopicClick?: (topic: string) => void;
 }
 
-export default function StoryViewer({ story, onClose, onStorySelect, onTopicClick }: Props) {
+export default function StoryViewer({ story, onClose, onDeleted, onStorySelect, onTopicClick }: Props) {
   const [tab, setTab] = useState<Tab>('story');
   const [related, setRelated] = useState<RelatedEntry[]>([]);
   const [loadingRelated, setLoadingRelated] = useState(true);
@@ -44,6 +45,8 @@ export default function StoryViewer({ story, onClose, onStorySelect, onTopicClic
   const [currentStory, setCurrentStory] = useState(story);
   const [topicStories, setTopicStories] = useState<{ topic: string; stories: Story[] } | null>(null);
   const [loadingTopic, setLoadingTopic] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setCurrentStory(story);
@@ -102,6 +105,27 @@ export default function StoryViewer({ story, onClose, onStorySelect, onTopicClic
     } finally {
       setLoadingDiagram(false);
     }
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await fetch(`/api/stories/${currentStory.id}`, { method: 'DELETE' });
+      onDeleted?.();
+      onClose?.();
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  }
+
+  function imageUrl(path: string | null): string | null {
+    if (!path) return null;
+    // Proxy private Vercel Blob URLs through the server
+    if (path.startsWith('https://') && path.includes('blob.vercel-storage.com')) {
+      return `/api/blob-proxy?url=${encodeURIComponent(path)}`;
+    }
+    return path;
   }
 
   async function handleTopicClick(topic: string) {
@@ -226,21 +250,66 @@ export default function StoryViewer({ story, onClose, onStorySelect, onTopicClic
               </div>
             )}
           </div>
-          {onClose && (
-            <button
-              onClick={onClose}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'var(--surface-2)', color: 'var(--text-3)',
-                border: '1px solid var(--border)', borderRadius: 8,
-                width: 32, height: 32, flexShrink: 0, cursor: 'pointer', transition: 'all 0.15s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'var(--border)'; e.currentTarget.style.color = 'var(--text)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--text-3)'; }}
-            >
-              <X size={15} />
-            </button>
-          )}
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            {confirmDelete ? (
+              <>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    background: '#dc3030', color: '#fff',
+                    border: 'none', borderRadius: 8,
+                    padding: '6px 12px', fontSize: 12, fontWeight: 600,
+                    cursor: deleting ? 'default' : 'pointer',
+                  }}
+                >
+                  {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                  Confirm
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  style={{
+                    background: 'var(--surface-2)', color: 'var(--text-3)',
+                    border: '1px solid var(--border)', borderRadius: 8,
+                    padding: '6px 10px', fontSize: 12, cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                title="Delete story"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'var(--surface-2)', color: 'var(--text-3)',
+                  border: '1px solid var(--border)', borderRadius: 8,
+                  width: 32, height: 32, cursor: 'pointer', transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#dc3030'; e.currentTarget.style.borderColor = '#dc3030'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--text-3)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
+            {onClose && (
+              <button
+                onClick={onClose}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'var(--surface-2)', color: 'var(--text-3)',
+                  border: '1px solid var(--border)', borderRadius: 8,
+                  width: 32, height: 32, cursor: 'pointer', transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--border)'; e.currentTarget.style.color = 'var(--text)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--text-3)'; }}
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Topic badges */}
@@ -346,9 +415,9 @@ export default function StoryViewer({ story, onClose, onStorySelect, onTopicClic
       <div style={{ padding: '24px' }}>
         {tab === 'story' && (
           <div>
-            {currentStory.sourceImagePath && (
+            {imageUrl(currentStory.sourceImagePath) && (
               <img
-                src={currentStory.sourceImagePath}
+                src={imageUrl(currentStory.sourceImagePath)!}
                 alt="Source"
                 style={{
                   width: '100%', maxHeight: 280, objectFit: 'cover',
