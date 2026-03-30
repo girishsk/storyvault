@@ -29,9 +29,10 @@ export async function POST(req: NextRequest) {
     // Store image — try Vercel Blob, then local filesystem, then skip
     let sourceImagePath: string | null = null;
     try {
-      if (process.env.BLOB_READ_WRITE_TOKEN) {
+      const blobToken = process.env.BLOB_READ_WRITE_TOKEN || process.env.storyvault_BLOB_READ_WRITE_TOKEN;
+      if (blobToken) {
         const { put } = await import('@vercel/blob');
-        const blob = await put(`images/${imageName}`, buffer, { access: 'private' });
+        const blob = await put(`images/${imageName}`, buffer, { access: 'private', token: blobToken });
         sourceImagePath = blob.url;
       } else {
         const { default: fs } = await import('fs');
