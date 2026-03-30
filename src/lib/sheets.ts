@@ -64,6 +64,7 @@ function rowToStory(row: string[], rowIndex: number): Story {
     mermaidCode: row[6] || '',
     diagramImagePath: row[7] || null,
     sourceImagePath: row[8] || null,
+    sourceImageRotation: 0,
     relatedStoryIds: JSON.parse(row[9] || '[]'),
     createdAt: row[10] || new Date().toISOString(),
     updatedAt: row[11] || new Date().toISOString(),

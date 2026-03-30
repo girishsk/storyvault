@@ -7,7 +7,8 @@ import DiagramViewer from './DiagramViewer';
 import StoryCard from './StoryCard';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { RefreshCw, X, Loader2, BookOpen, FileText, GitBranch, Link2, Sparkles, Maximize2, Pencil, Check, Trash2 } from 'lucide-react';
+import { RefreshCw, X, Loader2, BookOpen, FileText, GitBranch, Link2, Sparkles, Maximize2, Pencil, Check, Trash2, Expand } from 'lucide-react';
+import ImageViewer from './ImageViewer';
 
 interface RelatedEntry {
   story: Story;
@@ -47,6 +48,7 @@ export default function StoryViewer({ story, onClose, onDeleted, onStorySelect, 
   const [loadingTopic, setLoadingTopic] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showImageViewer, setShowImageViewer] = useState(false);
 
   useEffect(() => {
     setCurrentStory(story);
@@ -116,6 +118,18 @@ export default function StoryViewer({ story, onClose, onDeleted, onStorySelect, 
     } finally {
       setDeleting(false);
       setConfirmDelete(false);
+    }
+  }
+
+  async function saveImageRotation(rotation: number) {
+    const res = await fetch(`/api/stories/${currentStory.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceImageRotation: rotation }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setCurrentStory(updated);
     }
   }
 
@@ -416,15 +430,34 @@ export default function StoryViewer({ story, onClose, onDeleted, onStorySelect, 
         {tab === 'story' && (
           <div>
             {imageUrl(currentStory.sourceImagePath) && (
-              <img
-                src={imageUrl(currentStory.sourceImagePath)!}
-                alt="Source"
-                style={{
-                  width: '100%', maxHeight: 280, objectFit: 'cover',
-                  borderRadius: 12, border: '1px solid var(--border)',
-                  marginBottom: 20, display: 'block',
+              <div
+                style={{ position: 'relative', marginBottom: 20, cursor: 'pointer' }}
+                onClick={() => setShowImageViewer(true)}
+              >
+                <img
+                  src={imageUrl(currentStory.sourceImagePath)!}
+                  alt="Source"
+                  style={{
+                    width: '100%', maxHeight: 280, objectFit: 'cover',
+                    borderRadius: 12, border: '1px solid var(--border)',
+                    display: 'block',
+                    transform: `rotate(${currentStory.sourceImageRotation ?? 0}deg)`,
+                    transition: 'transform 0.3s ease',
+                  }}
+                />
+                <div style={{
+                  position: 'absolute', inset: 0, borderRadius: 12,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(0,0,0,0)', transition: 'background 0.2s',
                 }}
-              />
+                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(0,0,0,0.25)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(0,0,0,0)'; }}
+                >
+                  <Expand size={28} style={{ color: '#fff', opacity: 0, transition: 'opacity 0.2s' }}
+                    onMouseEnter={e => { (e.currentTarget as SVGElement).style.opacity = '1'; }}
+                  />
+                </div>
+              </div>
             )}
             <div className="story-prose">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -565,6 +598,15 @@ export default function StoryViewer({ story, onClose, onDeleted, onStorySelect, 
         label={fullscreen.label}
         type={fullscreen.type}
         onClose={() => setFullscreen(null)}
+      />
+    )}
+
+    {showImageViewer && imageUrl(currentStory.sourceImagePath) && (
+      <ImageViewer
+        src={imageUrl(currentStory.sourceImagePath)!}
+        initialRotation={currentStory.sourceImageRotation ?? 0}
+        onClose={() => setShowImageViewer(false)}
+        onSaveRotation={saveImageRotation}
       />
     )}
   </>

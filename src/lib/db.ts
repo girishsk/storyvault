@@ -23,12 +23,14 @@ async function ensureSchema() {
       mermaid_code TEXT NOT NULL DEFAULT '',
       diagram_image_path TEXT,
       source_image_path TEXT,
+      source_image_rotation INTEGER NOT NULL DEFAULT 0,
       related_story_ids TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       sheets_row_id INTEGER
     )
   `;
+  await sql`ALTER TABLE stories ADD COLUMN IF NOT EXISTS source_image_rotation INTEGER NOT NULL DEFAULT 0`;
   await sql`
     CREATE TABLE IF NOT EXISTS story_links (
       from_id TEXT NOT NULL,
@@ -68,6 +70,7 @@ function rowToStory(row: any): Story {
     mermaidCode: row.mermaid_code,
     diagramImagePath: row.diagram_image_path ?? null,
     sourceImagePath: row.source_image_path ?? null,
+    sourceImageRotation: (row.source_image_rotation as number) ?? 0,
     relatedStoryIds: JSON.parse(row.related_story_ids),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -103,11 +106,11 @@ export async function createStory(story: Omit<Story, 'createdAt' | 'updatedAt'>)
   const full: Story = { ...story, createdAt: now, updatedAt: now };
   await sql`
     INSERT INTO stories (id, title, content, book_title, author, topics, mermaid_code,
-      diagram_image_path, source_image_path, related_story_ids, created_at, updated_at, sheets_row_id)
+      diagram_image_path, source_image_path, source_image_rotation, related_story_ids, created_at, updated_at, sheets_row_id)
     VALUES (
       ${full.id}, ${full.title}, ${full.content}, ${full.bookTitle}, ${full.author},
       ${JSON.stringify(full.topics)}, ${full.mermaidCode},
-      ${full.diagramImagePath}, ${full.sourceImagePath},
+      ${full.diagramImagePath}, ${full.sourceImagePath}, ${full.sourceImageRotation ?? 0},
       ${JSON.stringify(full.relatedStoryIds)}, ${full.createdAt}, ${full.updatedAt}, ${full.sheetsRowId}
     )
   `;
@@ -129,6 +132,7 @@ export async function updateStory(id: string, updates: Partial<Story>): Promise<
       mermaid_code = ${updated.mermaidCode},
       diagram_image_path = ${updated.diagramImagePath},
       source_image_path = ${updated.sourceImagePath},
+      source_image_rotation = ${updated.sourceImageRotation ?? 0},
       related_story_ids = ${JSON.stringify(updated.relatedStoryIds)},
       updated_at = ${updated.updatedAt},
       sheets_row_id = ${updated.sheetsRowId}

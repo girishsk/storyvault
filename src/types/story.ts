@@ -8,6 +8,7 @@ export interface Story {
   mermaidCode: string;
   diagramImagePath: string | null;
   sourceImagePath: string | null;
+  sourceImageRotation: number;
   relatedStoryIds: string[];
   createdAt: string;
   updatedAt: string;

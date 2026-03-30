@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
       mermaidCode,
       diagramImagePath,
       sourceImagePath: null,
+      sourceImageRotation: 0,
       relatedStoryIds: [],
       sheetsRowId: null,
     });
