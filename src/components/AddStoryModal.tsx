@@ -185,7 +185,7 @@ export default function AddStoryModal({ onClose, onAdded }: Props) {
                 <input placeholder="Book title" style={inputStyle} {...field('bookTitle')} />
                 <input placeholder="Author" style={inputStyle} {...field('author')} />
               </div>
-              {error && <p style={{ margin: 0, fontSize: 13, color: 'var(--accent-2)' }}>{error}</p>}
+              {error && <p style={{ margin: 0, fontSize: 13, color: '#dc3030' }}>{error}</p>}
               <button
                 type="submit"
                 disabled={loading}
@@ -295,7 +295,7 @@ export default function AddStoryModal({ onClose, onAdded }: Props) {
                 Leave blank to let Claude detect from the image
               </p>
 
-              {error && <p style={{ margin: 0, fontSize: 13, color: 'var(--accent-2)' }}>{error}</p>}
+              {error && <p style={{ margin: 0, fontSize: 13, color: '#dc3030' }}>{error}</p>}
               <button
                 type="submit"
                 disabled={loading || !previewUrl}

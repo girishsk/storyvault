@@ -26,19 +26,26 @@ export async function POST(req: NextRequest) {
     const imageId = uuidv4();
     const imageName = `${imageId}.${ext}`;
 
-    // Store image — Vercel Blob in production, local filesystem in dev
-    let sourceImagePath: string;
-    if (process.env.BLOB_READ_WRITE_TOKEN) {
-      const { put } = await import('@vercel/blob');
-      const blob = await put(`images/${imageName}`, buffer, { access: 'public' });
-      sourceImagePath = blob.url;
-    } else {
-      const { default: fs } = await import('fs');
-      const { default: path } = await import('path');
-      const imagesDir = path.join(process.cwd(), 'data', 'images');
-      if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
-      fs.writeFileSync(path.join(imagesDir, imageName), buffer);
-      sourceImagePath = `/api/files/images/${imageName}`;
+    // Store image — try Vercel Blob, then local filesystem, then skip
+    let sourceImagePath: string | null = null;
+    try {
+      if (process.env.BLOB_READ_WRITE_TOKEN) {
+        const { put } = await import('@vercel/blob');
+        const blob = await put(`images/${imageName}`, buffer, { access: 'public' });
+        sourceImagePath = blob.url;
+      } else {
+        const { default: fs } = await import('fs');
+        const { default: path } = await import('path');
+        // Use /tmp on serverless (Vercel), data/images locally
+        const imagesDir = process.env.VERCEL
+          ? path.join('/tmp', 'images')
+          : path.join(process.cwd(), 'data', 'images');
+        if (!fs.existsSync(imagesDir)) fs.mkdirSync(imagesDir, { recursive: true });
+        fs.writeFileSync(path.join(imagesDir, imageName), buffer);
+        sourceImagePath = process.env.VERCEL ? null : `/api/files/images/${imageName}`;
+      }
+    } catch {
+      // Image storage is non-critical — story still gets created
     }
 
     // Extract story from image using Claude
