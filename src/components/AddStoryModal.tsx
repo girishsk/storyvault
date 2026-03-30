@@ -16,6 +16,47 @@ const inputStyle: React.CSSProperties = {
   transition: 'border 0.15s',
 };
 
+// Compress image client-side to stay under Vercel's 4.5MB body limit
+async function compressImage(file: File, maxMB = 3.5): Promise<File> {
+  if (file.size <= maxMB * 1024 * 1024) return file;
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX_DIM = 2000;
+      let { width, height } = img;
+      if (width > MAX_DIM || height > MAX_DIM) {
+        const r = Math.min(MAX_DIM / width, MAX_DIM / height);
+        width = Math.round(width * r);
+        height = Math.round(height * r);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+      let quality = 0.85;
+      const tryCompress = () => canvas.toBlob(blob => {
+        if (!blob) { resolve(file); return; }
+        if (blob.size <= maxMB * 1024 * 1024 || quality <= 0.4) {
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+        } else { quality -= 0.1; tryCompress(); }
+      }, 'image/jpeg', quality);
+      tryCompress();
+    };
+    img.src = url;
+  });
+}
+
+async function parseError(res: Response): Promise<string> {
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('json')) {
+    const body = await res.json().catch(() => ({}));
+    return body.error || `Error ${res.status}`;
+  }
+  if (res.status === 413) return 'Image too large — try a smaller photo';
+  return `Error ${res.status}: ${await res.text().catch(() => res.statusText)}`;
+}
+
 export default function AddStoryModal({ onClose, onAdded }: Props) {
   const [mode, setMode] = useState<'manual' | 'scan'>('manual');
   const [loading, setLoading] = useState(false);
@@ -83,7 +124,7 @@ export default function AddStoryModal({ onClose, onAdded }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      if (!res.ok) throw new Error((await res.json()).error);
+      if (!res.ok) throw new Error(await parseError(res));
       onAdded(); onClose();
     } catch (err) {
       setError(String(err));
@@ -94,16 +135,17 @@ export default function AddStoryModal({ onClose, onAdded }: Props) {
 
   async function handleScanSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const file = getActiveFile();
-    if (!file) return;
+    const raw = getActiveFile();
+    if (!raw) return;
     setLoading(true); setError('');
     try {
+      const file = await compressImage(raw);
       const formData = new FormData();
       formData.append('image', file);
       if (form.bookTitle.trim()) formData.append('bookTitle', form.bookTitle.trim());
       if (form.author.trim()) formData.append('author', form.author.trim());
       const res = await fetch('/api/scan', { method: 'POST', body: formData });
-      if (!res.ok) throw new Error((await res.json()).error);
+      if (!res.ok) throw new Error(await parseError(res));
       onAdded(); onClose();
     } catch (err) {
       setError(String(err));
