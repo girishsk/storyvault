@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     try {
       if (process.env.BLOB_READ_WRITE_TOKEN) {
         const { put } = await import('@vercel/blob');
-        const blob = await put(`images/${imageName}`, buffer, { access: 'public' });
+        const blob = await put(`images/${imageName}`, buffer, { access: 'private' });
         sourceImagePath = blob.url;
       } else {
         const { default: fs } = await import('fs');
