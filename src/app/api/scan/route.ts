@@ -7,11 +7,20 @@ import { renderMermaidToImage } from '@/lib/mermaid-render';
 // Formats Claude's vision API accepts
 const CLAUDE_SUPPORTED = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
-// Convert any image to JPEG + resize to max 2000px using sharp
+const MAX_UPLOAD_BYTES = 4.5 * 1024 * 1024; // Vercel hard limit
+const MAX_MEGAPIXELS = 100;                  // guard against decompression bombs
+
+// Validate it's a real image and not a bomb, then convert to JPEG
 async function normalizeImage(input: Buffer): Promise<{ buffer: Buffer; mediaType: string }> {
   const sharp = (await import('sharp')).default;
+  // Read metadata first — cheap, no full decode
+  const meta = await sharp(input, { failOn: 'none' }).metadata();
+  if (!meta.width || !meta.height) throw new Error('Not a valid image');
+  if ((meta.width * meta.height) > MAX_MEGAPIXELS * 1_000_000) {
+    throw new Error('Image resolution too large');
+  }
   const converted = await sharp(input, { failOn: 'none' })
-    .rotate() // auto-rotate based on EXIF orientation
+    .rotate()  // auto-rotate from EXIF
     .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: 88 })
     .toBuffer();
@@ -29,21 +38,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No image provided' }, { status: 400 });
     }
 
+    // Server-side size guard (client can be bypassed)
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return NextResponse.json({ error: 'Image too large (max 4.5 MB)' }, { status: 413 });
+    }
+
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const rawMediaType = file.type || (ext === 'heic' || ext === 'heif' ? 'image/heic' : 'image/jpeg');
     let buffer: Buffer = Buffer.from(await file.arrayBuffer());
     const imageId = uuidv4();
 
-    // Convert to JPEG if not already a Claude-supported format, or resize if large
+    // Always normalize: validates it's a real image, guards against bombs, converts HEIC→JPEG
     let mediaType = rawMediaType;
-    if (!CLAUDE_SUPPORTED.has(rawMediaType) || buffer.length > 3 * 1024 * 1024) {
-      try {
-        const normalized = await normalizeImage(buffer);
-        buffer = normalized.buffer;
-        mediaType = normalized.mediaType;
-      } catch {
-        // If sharp fails, proceed with original — Claude will return an error if unsupported
-      }
+    try {
+      const normalized = await normalizeImage(buffer);
+      buffer = normalized.buffer;
+      mediaType = normalized.mediaType;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Invalid image';
+      return NextResponse.json({ error: msg }, { status: 400 });
     }
 
     const imageName = `${imageId}.jpg`;
@@ -103,6 +116,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(story, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error('[scan]', err);
+    return NextResponse.json({ error: 'Something went wrong — please try again' }, { status: 500 });
   }
 }

@@ -5,11 +5,23 @@ function getBlobToken(): string | undefined {
   return process.env.BLOB_READ_WRITE_TOKEN || process.env.storyvault_BLOB_READ_WRITE_TOKEN;
 }
 
+// Only proxy URLs that are genuinely Vercel Blob — prevents SSRF
+function isVercelBlobUrl(url: string): boolean {
+  try {
+    const { protocol, hostname } = new URL(url);
+    return protocol === 'https:' && hostname.endsWith('.blob.vercel-storage.com');
+  } catch { return false; }
+}
+
 // Proxies private Vercel Blob images through the server so the browser
 // doesn't need direct blob credentials.
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get('url');
   if (!url) return NextResponse.json({ error: 'Missing url' }, { status: 400 });
+
+  if (!isVercelBlobUrl(url)) {
+    return NextResponse.json({ error: 'Invalid url' }, { status: 400 });
+  }
 
   const token = getBlobToken();
   if (!token) return NextResponse.json({ error: 'Blob not configured' }, { status: 503 });
