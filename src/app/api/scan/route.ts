@@ -4,11 +4,19 @@ import { extractStoryFromImage, generateMermaidDiagram, extractTopics } from '@/
 import { createStory } from '@/lib/db';
 import { renderMermaidToImage } from '@/lib/mermaid-render';
 
-const MEDIA_TYPES: Record<string, string> = {
-  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
-  gif: 'image/gif', webp: 'image/webp',
-  heic: 'image/jpeg', heif: 'image/jpeg', // iOS — treat as jpeg for Claude
-};
+// Formats Claude's vision API accepts
+const CLAUDE_SUPPORTED = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+
+// Convert any image to JPEG + resize to max 2000px using sharp
+async function normalizeImage(input: Buffer): Promise<{ buffer: Buffer; mediaType: string }> {
+  const sharp = (await import('sharp')).default;
+  const converted = await sharp(input, { failOn: 'none' })
+    .rotate() // auto-rotate based on EXIF orientation
+    .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 88 })
+    .toBuffer();
+  return { buffer: Buffer.from(converted), mediaType: 'image/jpeg' };
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,12 +30,25 @@ export async function POST(req: NextRequest) {
     }
 
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const mediaType = MEDIA_TYPES[ext] || 'image/jpeg';
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const rawMediaType = file.type || (ext === 'heic' || ext === 'heif' ? 'image/heic' : 'image/jpeg');
+    let buffer: Buffer = Buffer.from(await file.arrayBuffer());
     const imageId = uuidv4();
-    const imageName = `${imageId}.${ext}`;
 
-    // Store image — try Vercel Blob, then local filesystem, then skip
+    // Convert to JPEG if not already a Claude-supported format, or resize if large
+    let mediaType = rawMediaType;
+    if (!CLAUDE_SUPPORTED.has(rawMediaType) || buffer.length > 3 * 1024 * 1024) {
+      try {
+        const normalized = await normalizeImage(buffer);
+        buffer = normalized.buffer;
+        mediaType = normalized.mediaType;
+      } catch {
+        // If sharp fails, proceed with original — Claude will return an error if unsupported
+      }
+    }
+
+    const imageName = `${imageId}.jpg`;
+
+    // Store the normalized JPEG image
     let sourceImagePath: string | null = null;
     try {
       const blobToken = process.env.BLOB_READ_WRITE_TOKEN || process.env.storyvault_BLOB_READ_WRITE_TOKEN;
@@ -38,7 +59,6 @@ export async function POST(req: NextRequest) {
       } else {
         const { default: fs } = await import('fs');
         const { default: path } = await import('path');
-        // Use /tmp on serverless (Vercel), data/images locally
         const imagesDir = process.env.VERCEL
           ? path.join('/tmp', 'images')
           : path.join(process.cwd(), 'data', 'images');
