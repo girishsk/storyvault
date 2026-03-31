@@ -7,6 +7,7 @@ import { renderMermaidToImage } from '@/lib/mermaid-render';
 const MEDIA_TYPES: Record<string, string> = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
   gif: 'image/gif', webp: 'image/webp',
+  heic: 'image/jpeg', heif: 'image/jpeg', // iOS — treat as jpeg for Claude
 };
 
 export async function POST(req: NextRequest) {

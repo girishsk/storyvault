@@ -22,26 +22,30 @@ async function compressImage(file: File, maxMB = 3.5): Promise<File> {
   return new Promise(resolve => {
     const img = new Image();
     const url = URL.createObjectURL(file);
+    // If anything fails, fall back to the original file
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const MAX_DIM = 2000;
-      let { width, height } = img;
-      if (width > MAX_DIM || height > MAX_DIM) {
-        const r = Math.min(MAX_DIM / width, MAX_DIM / height);
-        width = Math.round(width * r);
-        height = Math.round(height * r);
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = width; canvas.height = height;
-      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
-      let quality = 0.85;
-      const tryCompress = () => canvas.toBlob(blob => {
-        if (!blob) { resolve(file); return; }
-        if (blob.size <= maxMB * 1024 * 1024 || quality <= 0.4) {
-          resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
-        } else { quality -= 0.1; tryCompress(); }
-      }, 'image/jpeg', quality);
-      tryCompress();
+      try {
+        const MAX_DIM = 2000;
+        let { width, height } = img;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          const r = Math.min(MAX_DIM / width, MAX_DIM / height);
+          width = Math.round(width * r);
+          height = Math.round(height * r);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+        let quality = 0.85;
+        const tryCompress = () => canvas.toBlob(blob => {
+          if (!blob) { resolve(file); return; }
+          if (blob.size <= maxMB * 1024 * 1024 || quality <= 0.4) {
+            resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+          } else { quality -= 0.1; tryCompress(); }
+        }, 'image/jpeg', quality);
+        tryCompress();
+      } catch { resolve(file); }
     };
     img.src = url;
   });
@@ -282,10 +286,10 @@ export default function AddStoryModal({ onClose, onAdded }: Props) {
                   </p>
                 </div>
               ) : (
-                /* Drop zone / click zone */
-                <div
-                  onClick={() => fileRef.current?.click()}
+                /* Drop zone — using <label> so iOS opens file picker reliably */
+                <label
                   style={{
+                    display: 'block',
                     border: `2px dashed ${hasImage ? 'var(--accent)' : 'var(--border)'}`,
                     borderRadius: 14, padding: '32px 20px',
                     textAlign: 'center', cursor: 'pointer',
@@ -297,10 +301,10 @@ export default function AddStoryModal({ onClose, onAdded }: Props) {
                 >
                   <Upload style={{ margin: '0 auto 10px', display: 'block', color: 'var(--text-3)' }} size={26} />
                   <p style={{ margin: '0 0 4px', fontSize: 14, color: 'var(--text-2)' }}>
-                    {displayName || 'Click to upload or paste an image'}
+                    {displayName || 'Tap to choose a photo'}
                   </p>
                   <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)' }}>
-                    JPG, PNG, WEBP — or press <kbd style={{
+                    JPG, PNG, HEIC — or press <kbd style={{
                       background: 'var(--surface-2)', border: '1px solid var(--border)',
                       borderRadius: 4, padding: '1px 5px', fontSize: 11, fontFamily: 'monospace',
                     }}>⌘V</kbd> to paste
@@ -308,7 +312,7 @@ export default function AddStoryModal({ onClose, onAdded }: Props) {
                   <input
                     ref={fileRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/*,image/heic,image/heif"
                     style={{ display: 'none' }}
                     onChange={e => {
                       const f = e.target.files?.[0];
@@ -318,7 +322,7 @@ export default function AddStoryModal({ onClose, onAdded }: Props) {
                       }
                     }}
                   />
-                </div>
+                </label>
               )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
