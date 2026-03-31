@@ -16,13 +16,19 @@ const inputStyle: React.CSSProperties = {
   transition: 'border 0.15s',
 };
 
-// Compress image client-side to stay under Vercel's 4.5MB body limit
+// Claude only accepts jpeg/png/gif/webp. HEIC (iPhone default) must be converted.
+// Also compress if over 3.5MB to stay within Vercel's 4.5MB body limit.
+const CLAUDE_SUPPORTED = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+
 async function compressImage(file: File, maxMB = 3.5): Promise<File> {
-  if (file.size <= maxMB * 1024 * 1024) return file;
+  const supported = CLAUDE_SUPPORTED.has(file.type.toLowerCase());
+  // Only skip processing if already a supported format AND small enough
+  if (supported && file.size <= maxMB * 1024 * 1024) return file;
+
   return new Promise(resolve => {
     const img = new Image();
     const url = URL.createObjectURL(file);
-    // If anything fails, fall back to the original file
+    // On failure (e.g. unrenderable format), send original and let server handle the error
     img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
     img.onload = () => {
       URL.revokeObjectURL(url);
@@ -37,7 +43,7 @@ async function compressImage(file: File, maxMB = 3.5): Promise<File> {
         const canvas = document.createElement('canvas');
         canvas.width = width; canvas.height = height;
         canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
-        let quality = 0.85;
+        let quality = 0.9;
         const tryCompress = () => canvas.toBlob(blob => {
           if (!blob) { resolve(file); return; }
           if (blob.size <= maxMB * 1024 * 1024 || quality <= 0.4) {
