@@ -286,7 +286,7 @@ export default function AddStoryModal({ onClose, onAdded }: Props) {
                     onChange={e => {
                       const f = e.target.files?.[0];
                       if (f) {
-                        setPastedFile(null);
+                        setPastedFile(f); // store in state — fileRef.current.files can be stale on iOS
                         setPreviewUrl(URL.createObjectURL(f));
                       }
                     }}
